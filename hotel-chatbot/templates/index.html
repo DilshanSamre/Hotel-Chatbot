@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hotel Assistant Chatbot</title>
+  <style>
+    :root {
+      --primary-color: #4285f4;
+      --user-color: #e3f2fd;
+      --bot-color: #f1f3f4;
+      --error-color: #ffebee;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    body {
+      background-color: #f5f7fa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .chat-container {
+      width: 100%;
+      max-width: 800px;
+      height: 90vh;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .chat-header {
+      background: var(--primary-color);
+      color: white;
+      padding: 15px 20px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    
+    .chat-messages {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .message {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      word-wrap: break-word;
+      font-size: 16px;
+      line-height: 1.4;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    .user-message {
+      background: var(--user-color);
+      align-self: flex-end;
+      border-bottom-right-radius: 5px;
+    }
+    
+    .bot-message {
+      background: var(--bot-color);
+      align-self: flex-start;
+      border-bottom-left-radius: 5px;
+    }
+    
+    .error-message {
+      background: var(--error-color);
+      color: #d32f2f;
+      align-self: center;
+      text-align: center;
+    }
+
+    .typing-indicator {
+      font-style: italic;
+      color: #666;
+      opacity: 0.8;
+    }
+    
+    .chat-input {
+      display: flex;
+      border-top: 1px solid #e0e0e0;
+      padding: 10px;
+      background: #f8f9fa;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .chat-input select {
+      margin-right: 10px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      padding: 6px 10px;
+      font-size: 16px;
+      background: white;
+      cursor: pointer;
+      min-width: 140px;
+    }
+    
+    .chat-input textarea {
+      flex: 1;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      padding: 12px 16px;
+      font-size: 16px;
+      resize: none;
+      outline: none;
+      min-height: 50px;
+      max-height: 120px;
+      margin-right: 10px;
+      transition: border 0.3s;
+    }
+    
+    .chat-input textarea:focus {
+      border-color: var(--primary-color);
+    }
+    
+    .chat-input button {
+      background: var(--primary-color);
+      border: none;
+      color: white;
+      padding: 12px 36px;
+      border-radius: 24px;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 600;
+      transition: background 0.2s;
+      min-width: 100px;
+      flex-shrink: 0;
+    }
+    
+    .chat-input button:hover {
+      background: #3367d6;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Timestamp style */
+    .timestamp {
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 4px;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">Hotel Assistant</div>
+    <div id="chatMessages" class="chat-messages">
+      <div class="message bot-message">
+        Hello! I'm your hotel assistant. How can I help you today?
+        <div class="timestamp">Just now</div>
+      </div>
+    </div>
+    <div class="chat-input">
+      <select id="languageSelect" aria-label="Select Language">
+        <option value="English" selected>English</option>
+        <option value="Spanish">Spanish</option>
+        <option value="French">French</option>
+        <option value="German">German</option>
+        <option value="Chinese">Chinese</option>
+        <option value="Japanese">Japanese</option>
+      </select>
+      <textarea id="messageInput" placeholder="Type your message here..." required></textarea>
+      <button id="sendButton">Send</button>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const chatMessages = document.getElementById('chatMessages');
+      const messageInput = document.getElementById('messageInput');
+      const sendButton = document.getElementById('sendButton');
+      const languageSelect = document.getElementById('languageSelect');
+      
+      let typingIndicatorDiv = null;
+      
+      // Auto-resize textarea
+      messageInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+      });
+      
+      // Send message on Enter (allow Shift+Enter for newline)
+      messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+      
+      // Send button click
+      sendButton.addEventListener('click', sendMessage);
+      
+      function getCurrentTime() {
+        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      
+      function appendMessage(text, isUser = false, isError = false) {
+        const messageDiv = document.createElement('div');
+        
+        if (isError) {
+          messageDiv.classList.add('message', 'error-message');
+        } else {
+          messageDiv.classList.add('message', isUser ? 'user-message' : 'bot-message');
+        }
+        
+        messageDiv.innerHTML = `
+          ${text}
+          <div class="timestamp">${getCurrentTime()}</div>
+        `;
+        
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+      
+      function showTypingIndicator() {
+        if (!typingIndicatorDiv) {
+          typingIndicatorDiv = document.createElement('div');
+          typingIndicatorDiv.classList.add('message', 'bot-message', 'typing-indicator');
+          typingIndicatorDiv.textContent = 'Assistant is typing...';
+          chatMessages.appendChild(typingIndicatorDiv);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+      }
+      
+      function hideTypingIndicator() {
+        if (typingIndicatorDiv) {
+          typingIndicatorDiv.remove();
+          typingIndicatorDiv = null;
+        }
+      }
+      
+      async function sendMessage() {
+        const userMessage = messageInput.value.trim();
+        if (!userMessage) return;
+        
+        const selectedLanguage = languageSelect.value;
+        
+        appendMessage(userMessage, true);
+        messageInput.value = '';
+        messageInput.style.height = 'auto';
+        messageInput.focus();
+        
+        showTypingIndicator();
+        
+        try {
+          const response = await fetch('/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: userMessage, language: selectedLanguage })
+          });
+          
+          const data = await response.json();
+          
+          if (!response.ok) {
+            throw new Error(data.error || 'Server returned an error');
+          }
+          
+          hideTypingIndicator();
+          appendMessage(data.response, false);
+          
+        } catch (error) {
+          hideTypingIndicator();
+          console.error('Chat error:', error);
+          appendMessage(`Error: ${error.message}`, false, true);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
